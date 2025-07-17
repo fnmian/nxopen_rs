@@ -27,4 +27,5 @@ unsafe extern "C" {
 unsafe extern "C" {
     pub fn malloc(size: usize) -> *mut u8;
     pub fn free(p: *mut u8);
+    pub fn realloc(ptr:*mut u8,size: usize) -> *mut u8;
 }

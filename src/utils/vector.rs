@@ -1,7 +1,9 @@
-use std::alloc::{self, Layout};
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ptr::{self};
+
+use crate::syss::error_internal;
+use crate::winapi::{free, malloc, realloc};
 ///C风格动态数组
 #[repr(C)]
 pub struct CVec<T> {
@@ -38,14 +40,17 @@ impl<T> CVec<T> {
         }
 
         unsafe {
-            let layout = Layout::array::<T>(cap).expect("Invalid layout");
-            let new_data = alloc::alloc(layout);
+            let byte_size = cap * elem_size;
+            let new_data = malloc(byte_size) as *mut T;
 
             if new_data.is_null() {
-                alloc::handle_alloc_error(layout);
+                 error_internal(
+                "Cvec\0".as_ptr(),
+                line!(),
+                "Failed to allocate memory\0".as_ptr(),
+            );
             }
 
-            let new_data = new_data as *mut T;
             CVec {
                 data: new_data,
                 last: new_data,
@@ -157,18 +162,21 @@ impl<T> CVec<T> {
         let new_cap = if old_cap == 0 { 4 } else { old_cap * 2 };
 
         unsafe {
-            let old_layout = Layout::array::<T>(old_cap).unwrap();
-            let new_layout = Layout::array::<T>(new_cap).unwrap();
+            let elem_size = size_of::<T>();
+            let new_byte_size = new_cap * elem_size;
 
             let new_data = if old_cap == 0 {
-                alloc::alloc(new_layout) as *mut T
+                malloc(new_byte_size) as *mut T
             } else {
-                let old_ptr = self.data as *mut u8;
-                alloc::realloc(old_ptr, old_layout, new_layout.size()) as *mut T
+                realloc(self.data as _, new_byte_size) as *mut T
             };
 
             if new_data.is_null() {
-                alloc::handle_alloc_error(new_layout);
+                error_internal(
+                "Cvec\0".as_ptr(),
+                line!(),
+                "Failed to allocate memory\0".as_ptr(),
+            );
             }
 
             self.data = new_data;
@@ -213,8 +221,7 @@ impl<T> Drop for CVec<T> {
         let cap = self.capacity();
         if cap > 0 {
             unsafe {
-                let layout = Layout::array::<T>(cap).unwrap();
-                alloc::dealloc(self.data as *mut u8, layout);
+                free(self.data as _);
             }
         }
     }
