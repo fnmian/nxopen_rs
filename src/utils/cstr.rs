@@ -3,13 +3,13 @@ use crate::{
     winapi::{WideCharToMultiByte, free, malloc},
 };
 
-trait Cstr {
-    fn as_cstr(&self) -> *const u8;
-    fn as_asni(&self) -> *const u8;
+pub trait Cstr {
+    fn to_cstring(&self) -> *mut u8;
+    fn to_ansi(&self) -> *mut u8;
 }
 
 impl Cstr for &str {
-    fn as_cstr(&self) -> *const u8 {
+    fn to_cstring(&self) -> *mut u8 {
         let size = self.len() + 1;
         let ptr = unsafe { malloc(size) };
         if ptr.is_null() {
@@ -26,29 +26,15 @@ impl Cstr for &str {
         ptr
     }
 
-    fn as_asni(&self) -> *const u8 {
-        let mut code_points: Vec<u16> = (*self).encode_utf16().collect();
-        if code_points.is_empty() {
-            let ptr = unsafe { malloc(1) };
-            if ptr.is_null() {
-                error_internal(
-                    "Cstr\0".as_ptr(),
-                    line!(),
-                    "Failed to allocate memory\0".as_ptr(),
-                );
-            }
-            unsafe {
-                *ptr = 0;
-            }
-            return ptr;
-        }
+    fn to_ansi(&self) -> *mut u8 {
+        let mut code_points: Vec<u16> = self.encode_utf16().collect();
         code_points.push(0);
 
         let required_size = unsafe {
             WideCharToMultiByte(
                 0,
                 0,
-                code_points.as_ptr() as *const u8,
+                code_points.as_ptr() as _,
                 -1,
                 std::ptr::null_mut(),
                 0,
@@ -75,7 +61,7 @@ impl Cstr for &str {
             WideCharToMultiByte(
                 0,
                 0,
-                code_points.as_ptr() as *const u8,
+                code_points.as_ptr() as _,
                 -1,
                 p,
                 buffer_size as i32,
@@ -95,24 +81,30 @@ impl Cstr for &str {
     }
 }
 
-trait Tostr {
-    fn as_str(&self) -> &str;
+pub trait Tostr {
+    fn to_string(&self) -> String;
     fn free(&self);
 }
 impl Tostr for *const u8 {
-    fn as_str(&self) -> &str {
+    fn to_string(&self) -> String {
         unsafe {
-            match std::ffi::CStr::from_ptr(*self as _).to_str() {
-                Ok(s) => s,
-                Err(_) => {
-                    error_internal(
-                        "Cstr\0".as_ptr(),
-                        line!(),
-                        "CStr creation failed\0".as_ptr(),
-                    );
-                    "\0"
-                }
-            }
+            std::ffi::CStr::from_ptr(*self as _)
+                .to_string_lossy()
+                .into_owned()
+        }
+    }
+    fn free(&self) {
+        unsafe {
+            free((*self) as _);
+        }
+    }
+}
+impl Tostr for *mut u8 {
+    fn to_string(&self) -> String {
+        unsafe {
+            std::ffi::CStr::from_ptr(*self as _)
+                .to_string_lossy()
+                .into_owned()
         }
     }
     fn free(&self) {
