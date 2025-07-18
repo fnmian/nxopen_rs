@@ -3,16 +3,14 @@ use crate::{
     winapi::{WideCharToMultiByte, free, malloc},
 };
 
-///C风格字符串
-#[repr(C)]
-pub struct Cstr {
-    data: *const u8,
+trait Cstr {
+    fn as_cstr(&self) -> *const u8;
+    fn as_asni(&self) -> *const u8;
 }
 
-impl Cstr {
-    ///创建utf8编码字符串
-    pub fn new(str: &str) -> Self {
-        let size = str.len() + 1;
+impl Cstr for &str {
+    fn as_cstr(&self) -> *const u8 {
+        let size = self.len() + 1;
         let ptr = unsafe { malloc(size) };
         if ptr.is_null() {
             error_internal(
@@ -22,14 +20,14 @@ impl Cstr {
             );
         }
         unsafe {
-            std::ptr::copy_nonoverlapping(str.as_ptr(), ptr, str.len());
-            *ptr.add(str.len()) = 0;
+            std::ptr::copy_nonoverlapping((*self).as_ptr(), ptr, self.len());
+            *ptr.add(self.len()) = 0;
         }
-        Self { data: ptr }
+        ptr
     }
-    ///创建asni编码字符串
-    pub fn new_asni(str: &str) -> Self {
-        let mut code_points: Vec<u16> = str.encode_utf16().collect();
+
+    fn as_asni(&self) -> *const u8 {
+        let mut code_points: Vec<u16> = (*self).encode_utf16().collect();
         if code_points.is_empty() {
             let ptr = unsafe { malloc(1) };
             if ptr.is_null() {
@@ -42,14 +40,14 @@ impl Cstr {
             unsafe {
                 *ptr = 0;
             }
-            return Self { data: ptr };
+            return ptr;
         }
         code_points.push(0);
 
         let required_size = unsafe {
             WideCharToMultiByte(
                 0,
-                1024,
+                0,
                 code_points.as_ptr() as *const u8,
                 -1,
                 std::ptr::null_mut(),
@@ -60,11 +58,7 @@ impl Cstr {
         };
 
         if required_size <= 0 {
-            error_internal(
-                "Cstr\0".as_ptr(),
-                line!(),
-                "required_size <= 0 \0".as_ptr(),
-            );
+            error_internal("Cstr\0".as_ptr(), line!(), "required_size <= 0 \0".as_ptr());
         }
 
         let buffer_size = required_size as usize;
@@ -80,7 +74,7 @@ impl Cstr {
         let result = unsafe {
             WideCharToMultiByte(
                 0,
-                1024,
+                0,
                 code_points.as_ptr() as *const u8,
                 -1,
                 p,
@@ -97,13 +91,33 @@ impl Cstr {
                 "Failed to WideCharToMultiByte\0".as_ptr(),
             );
         }
-        Self { data: p }
+        p
     }
 }
-impl Drop for Cstr {
-    fn drop(&mut self) {
+
+trait Tostr {
+    fn as_str(&self) -> &str;
+    fn free(&self);
+}
+impl Tostr for *const u8 {
+    fn as_str(&self) -> &str {
         unsafe {
-            free(self.data as _);
+            match std::ffi::CStr::from_ptr(*self as _).to_str() {
+                Ok(s) => s,
+                Err(_) => {
+                    error_internal(
+                        "Cstr\0".as_ptr(),
+                        line!(),
+                        "CStr creation failed\0".as_ptr(),
+                    );
+                    "\0"
+                }
+            }
+        }
+    }
+    fn free(&self) {
+        unsafe {
+            free((*self) as _);
         }
     }
 }
