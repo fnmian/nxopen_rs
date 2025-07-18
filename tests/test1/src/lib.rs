@@ -1,6 +1,8 @@
 
+
 #[unsafe(no_mangle)]
 pub extern "C" fn ufusr() -> i32 {
+   
     0
 }
 
