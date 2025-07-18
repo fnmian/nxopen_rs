@@ -1,8 +1,9 @@
-use crate::winapi::{GetProcAddress, LoadLibraryA};
+use crate::{lazy_load_function, winapi::{GetProcAddress, LoadLibraryA}};
 
 static mut FN_ERROR_INTERNAL: usize = 0;
 
 ///nx异常函数，可中断执行
+#[inline(never)]
 pub fn error_internal(classname: *const u8, error_line: u32, error_content: *const u8) {
     unsafe {
         if FN_ERROR_INTERNAL == 0 {
@@ -17,4 +18,11 @@ pub fn error_internal(classname: *const u8, error_line: u32, error_content: *con
             error_content,
         );
     }
+}
+
+lazy_load_function! {
+    pub fn get_release()->*const u8{dll:"libsyss.dll",func:"?UG_INSPECT_version@@YAPEBDXZ"}
+}
+lazy_load_function! {
+    pub fn list_uiprintf(s:*const u8){dll:"libsyss.dll",func:"?listUIprintf@@YAXPEBDZZ"}
 }

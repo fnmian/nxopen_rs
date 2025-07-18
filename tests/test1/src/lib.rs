@@ -1,10 +1,8 @@
-use nxopen_rs::cstr::Cstr;
-
-
+use nxopen_rs::{ nxopen_ui::ui::{print}};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn ufusr() -> i32 {
-   nxopen_rs::ui::UI::uc1601("更何况反馈".to_cstring(), 1);
+    print(nxopen_rs::syss::get_release());
     0
 }
 
