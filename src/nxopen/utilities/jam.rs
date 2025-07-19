@@ -1,4 +1,5 @@
-use crate::lazy_load_function;
+use crate::{lazy_load_function};
+
 
 lazy_load_function! {
     pub fn lookup_singleton_tag(name: *const u8) -> u32 {

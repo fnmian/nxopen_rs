@@ -1,5 +1,5 @@
 use crate::{
-    lazy_load_function,taggedobject::{Tag, TaggedObject}
+    cstr::Cstr, lazy_load_function, taggedobject::{Tag, TaggedObject}
 };
 
 pub struct UI {
@@ -24,6 +24,6 @@ lazy_load_function! {
     pub fn uc1601(a:*const u8, b: i32){dll:"libugopenint.dll",func:"uc1601"}
 }
 
-pub fn print(s:*const u8){
-    crate::syss::list_uiprintf(s);
+pub fn print(s:&Cstr){
+    crate::syss::list_uiprintf(s.ptr);
 }
