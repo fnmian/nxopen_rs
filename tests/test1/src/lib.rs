@@ -1,8 +1,8 @@
-use nxopen_rs::{ nxopen_ui::ui::{print}};
+use nxopen_rs::{ cstr::Cstr};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn ufusr() -> i32 {
-    print(nxopen_rs::syss::get_release());
+    nxopen_rs::nxopen_ui::ui::print("加分加分打电话的".to_cstring());
     0
 }
 
