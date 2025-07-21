@@ -19,3 +19,15 @@ lazy_load_function! {
         func: "JAM_ask_object_tag"
     }
 }
+lazy_load_function! {
+    pub fn jam_start_wrapped_call(){
+        dll: "libjam.dll",
+        func: "JAM_start_wrapped_call"
+    }
+}
+lazy_load_function! {
+    pub fn jam_decode_error(errcode:i32, errbuf:&mut u8){
+        dll: "libjam.dll",
+        func: "JAM_decode_error"
+    }
+}

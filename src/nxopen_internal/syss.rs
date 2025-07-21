@@ -26,3 +26,6 @@ lazy_load_function! {
 lazy_load_function! {
     pub fn list_uiprintf(s:*const u8){dll:"libsyss.dll",func:"?listUIprintf@@YAXPEBDZZ"}
 }
+lazy_load_function! {
+    pub fn decode_error(code:i32) -> *const u8{dll:"libsyss.dll",func:"?ERROR_decode@@YAPEADH@Z"}
+}

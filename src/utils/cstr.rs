@@ -9,6 +9,7 @@ pub struct Cstr {
     pub ptr: *mut u8,
 }
 impl Cstr {
+    #[inline]
     pub fn empty() -> Self {
         let ptr = unsafe { malloc(1) };
         if ptr.is_null() {
@@ -26,6 +27,7 @@ impl Cstr {
     fn len(&self) -> usize {
         unsafe { strlen(self.ptr) }
     }
+    #[inline]
     pub fn push(&mut self, c: u8) {
         let current_len = self.len();
         let new_len = current_len + 1;
@@ -47,6 +49,7 @@ impl Cstr {
             *dest.offset(1) = 0;
         }
     }
+    #[inline]
     pub fn pop(&mut self) -> Option<u8> {
         let current_len = self.len();
         if current_len == 0 {
@@ -58,6 +61,7 @@ impl Cstr {
         }
         Some(c)
     }
+    #[inline]
     pub fn append(&mut self, other: &Cstr) {
         let other_len = other.len();
         if other_len == 0 {
@@ -67,7 +71,7 @@ impl Cstr {
         let new_len = current_len + other_len;
         let new_size = new_len + 1;
 
-        let new_ptr = unsafe {realloc(self.ptr as *mut _, new_size) };
+        let new_ptr = unsafe { realloc(self.ptr as *mut _, new_size) };
         if new_ptr.is_null() {
             error_internal(
                 "Cstr\0".as_ptr(),
@@ -86,16 +90,15 @@ impl Cstr {
             *dest_start.offset(other_len as isize) = 0;
         }
     }
-
 }
 impl Add<&Cstr> for &Cstr {
     type Output = Cstr;
-
+    #[inline]
     fn add(self, other: &Cstr) -> Cstr {
         let new_len = self.len() + other.len();
         let new_size = new_len + 1;
 
-        let new_ptr = unsafe {malloc(new_size) };
+        let new_ptr = unsafe { malloc(new_size) };
         if new_ptr.is_null() {
             error_internal(
                 "Cstr\0".as_ptr(),
@@ -114,11 +117,14 @@ impl Add<&Cstr> for &Cstr {
             *new_ptr.offset(new_len as isize) = 0;
         }
 
-        Cstr { ptr: new_ptr as *mut u8 }
+        Cstr {
+            ptr: new_ptr as *mut u8,
+        }
     }
 }
 
 impl AddAssign<&Cstr> for Cstr {
+    #[inline]
     fn add_assign(&mut self, other: &Cstr) {
         self.append(other);
     }
@@ -131,12 +137,13 @@ impl Drop for Cstr {
         }
     }
 }
-pub trait CstrTrait {
+pub trait AsCstr {
     fn to_cstring(&self) -> Cstr;
     fn to_ansi(&self) -> Cstr;
 }
 
-impl CstrTrait for &str {
+impl AsCstr for &str {
+    #[inline]
     fn to_cstring(&self) -> Cstr {
         let size = self.len() + 1;
         let ptr = unsafe { malloc(size) };
@@ -153,7 +160,7 @@ impl CstrTrait for &str {
         }
         Cstr { ptr: ptr }
     }
-
+    #[inline]
     fn to_ansi(&self) -> Cstr {
         let mut code_points: Vec<u16> = self.encode_utf16().collect();
         code_points.push(0);
@@ -213,6 +220,7 @@ pub trait Tostr {
     fn to_string(self) -> String;
 }
 impl Tostr for Cstr {
+    #[inline]
     fn to_string(self) -> String {
         unsafe {
             std::ffi::CStr::from_ptr(self.ptr as _)
