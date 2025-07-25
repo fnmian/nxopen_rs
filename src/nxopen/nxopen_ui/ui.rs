@@ -15,13 +15,12 @@ impl UI {
         let ptr = jam::jam_lookup_tag(t);
         Self { tag: t, ptr: ptr }
     }
-    pub fn create_dialog(dialog_name: &Cstr) -> Result<BlockDialog, *const u8> {
+    pub fn create_dialog(dialog_name: &Cstr) -> Result<BlockDialog, i32> {
         let mut dialog: usize = 0;
         jam::jam_start_wrapped_call();
         let errcode = ui_main_create_dialog(dialog_name.ptr, &mut dialog);
         if errcode != 0 {
-            let err = syss::decode_error(errcode);
-            return Err(err);
+            return Err(errcode);
         }
         Ok(BlockDialog { ptr: dialog})
     }

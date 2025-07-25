@@ -1,19 +1,12 @@
 use std::usize;
 
-use crate::{
-    cstr::{AsCstr, Cstr},
-    lazy_load_function,
-    nxopen_ui::{compositeblock::CompositeBlock, ui::{self, UI}},
-    syss,
-    taggedobject::Tag,
-    utilities::jam::{jam_ask_object_tag, jam_start_wrapped_call}, winapi,
-};
+use crate::{cstr::Cstr, lazy_load_function, nxopen_ui::ui::{self, UI}, taggedobject::Tag};
 
 pub struct BlockDialog {
     pub(crate) ptr: usize,
 }
 impl BlockDialog {
-    pub fn create_dialog(dialog_name: &Cstr) -> Result<BlockDialog, *const u8> {
+    pub fn create_dialog(dialog_name: &Cstr) -> Result<BlockDialog, i32> {
         UI::create_dialog(dialog_name)
     }
     pub fn show(&self) -> Response {
@@ -54,36 +47,21 @@ impl BlockDialog {
     pub fn add_ok_handler(&self, handler: fn() -> i32) {
         xja_block_styler_dialog_add_ok_handler(self.ptr, handler as *const ());
     }
-    pub fn add_update_handler<T>(&self, object: &T,)
-    where T:Update
-     {
-       let p =self.into_dialog_wrap();
-       let p2 = Box::into_raw(Box::new(BlockDialogUpdate::new(object)));
-     //  ui::uc1601(format!("{:X}",&p.call_backs as *const _ as usize).as_str().to_cstring().ptr, 1);
-        p.call_backs.update=p2 as _;
-
-        // xja_block_styler_dialog_add_update_handler(self.ptr, handler as *const ());
+    pub fn add_update_handler<T>(&self, object: &T)
+    where
+        T: Update+ 'static,
+    {
+      let p = self.into_dialog_wrap();
+        let update = Box::new(BlockDialogUpdate::new(object));
+        p.call_backs.update = Some(update);
     }
     pub fn add_enable_ok_button_handler(&self, handler: fn() -> i8) {
         xja_block_styler_dialog_add_enable_ok_button_handler(self.ptr, handler as *const ());
     }
-     pub fn into_dialog_wrap(&self)->&mut DialogWrap{
-       // ui::uc1601(format!("{:X}",self.ptr).as_str().to_cstring().ptr, 1);
-       unsafe { &mut *(self.ptr as *const () as *mut DialogWrap) }
+    pub fn into_dialog_wrap(&self) -> &mut DialogWrap {
+       unsafe { &mut *(self.ptr as *mut DialogWrap) }
     }
-    // pub fn get_composite_block(&self) ->CompositeBlock {
-    //     let e: usize = 666;
-    //     jam_start_wrapped_call();
-    //     let num = xja_block_styler_dialog_get_top_block(self.ptr, &e as *const _ as _);
-    //     if num != 0 {
-    //         let err = syss::decode_error(num);
-    //         syss::error_internal(file!().to_cstring().ptr, line!(), err);
-    //     }
-    //    CompositeBlock {
-    //         tag: jam_ask_object_tag(e),
-    //         ptr: e
-    //     }
-    // }
+
     pub fn get_ptr(&self) -> usize {
         self.ptr
     }
@@ -108,43 +86,46 @@ pub trait Update {
     fn update(&self, bk: usize) -> i32;
 }
 #[repr(C)]
-pub struct BlockDialogUpdate
- {
-    adapter:*mut CallBackAdapter,
+pub struct BlockDialogUpdate {
+    adapter: *mut CallBackAdapter,
     dlg: *const (),
     func: *const (),
 }
-impl BlockDialogUpdate
-{
+impl BlockDialogUpdate {
     pub fn new<T>(d: &T) -> Self
     where
         T: Update,
     {
+       // ui::print(&Cstr { ptr:format!("{:X}\n\0",d as *const T as usize).as_ptr() as _ });
         BlockDialogUpdate {
-            adapter:Box::into_raw(Box::new(CallBackAdapter {
-                f1: BlockDialogUpdate::free as *const (),
-                f2: 0,
-                f3: 0,
-                adapter_cb: BlockDialogUpdate::update_adapter as *const (),
-            })),
-            dlg:(d) as *const T as *const (),
+            dlg: d as *const T as *const (),
             func: T::update as *const (),
+            adapter: Box::into_raw(Box::new(CallBackAdapter {
+                free_fn: BlockDialogUpdate::free as *const (),
+                clone_fn: std::ptr::null(),
+                dynamic_cast_fn: std::ptr::null(),
+                adapter_fn: BlockDialogUpdate::update_adapter as *const (),
+            })),
         }
     }
     fn update_adapter(&self, block: usize) -> i32 {
         let f: fn(*const (), usize) -> i32 = unsafe { std::mem::transmute(self.func) };
         f(self.dlg, block)
     }
-    fn free(&self,b:bool) {
-        ui::uc1601("free".to_cstring().ptr, 1);
+    fn free(&self, _b: bool) -> i32 {
+        0
     }
 }
 
 pub struct CallBackAdapter {
-    f1: *const (),
-    f2: usize,
-    f3: usize,
-    adapter_cb: *const (),
+    #[allow(dead_code)]
+    free_fn: *const (),
+    #[allow(dead_code)]
+    clone_fn: *const (),
+    #[allow(dead_code)]
+    dynamic_cast_fn: *const (),
+    #[allow(dead_code)]
+    adapter_fn: *const (),
 }
 
 #[repr(C)]
@@ -159,16 +140,16 @@ pub enum Response {
 pub struct DialogWrap<'a> {
     vt: usize,
     topblock: usize,
-    call_backs:&'a mut DialogCallBacks,
+    call_backs: &'a mut DialogCallBacks,
 }
 
 #[repr(C)]
-pub struct DialogCallBacks{
+pub struct DialogCallBacks {
     ok: usize,
     apply: usize,
     cancel: usize,
     close: usize,
-    update: * mut BlockDialogUpdate,
+    update: Option<Box<BlockDialogUpdate>>,
     filter: usize,
     initialize: usize,
     shown: usize,
