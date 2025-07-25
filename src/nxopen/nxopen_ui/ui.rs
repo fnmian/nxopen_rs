@@ -23,7 +23,7 @@ impl UI {
             let err = syss::decode_error(errcode);
             return Err(err);
         }
-        Ok(BlockDialog { ptr: dialog })
+        Ok(BlockDialog { ptr: dialog})
     }
 }
 
