@@ -1,16 +1,14 @@
-use std::os::raw;
-
 use nxopen_rs::{
-    cstr::{AsCstr, Cstr, Tostr},
+    cstr::Cstr,
+    nx_printf,
     nxopen_ui::{
         self,
         block_dialog::{BlockDialog, Response, Update},
-        compositeblock::CompositeBlock,
-        ui::{self, uc1601},
+        ui::{self},
         uiblock::UIBlock,
     },
     syss,
-    utilities::jam::{jam_ask_object_tag, jam_start_wrapped_call},
+    taggedobject::TaggedObject,
 };
 
 pub struct Demo01 {
@@ -27,31 +25,32 @@ impl Demo01 {
             Err(err) => Err(err),
         }
     }
+    pub fn init(&self) {
+        self.the_dialog.add_initialize_handler(|| {});
+        self.the_dialog.add_update_handler(self);
+    }
     pub fn show(&self) -> Response {
         self.the_dialog.show()
     }
 }
 impl Update for Demo01 {
     fn update(&self, bk: usize) -> i32 {
-        ui::print(
-            &format!("{:x}", self.the_dialog.get_ptr())
-                .to_string()
-                .as_str()
-                .to_cstring(),
-        );
+        match self.the_dialog.get_topblock() {
+            Ok(o) => nx_printf!("%d\n", o.get_tag()),
+            Err(e) => nx_printf!("", syss::decode_error(e)),
+        }
+        nx_printf!("%p", bk);
         0
     }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn ufusr() -> i32 {
-    if let Ok(d) = Demo01::new(&"demo01.dlx".to_cstring()) {
-        d.the_dialog.add_initialize_handler(|| {});
-        d.the_dialog.add_update_handler(&d);
+    if let Ok(d) = Demo01::new(&"demo01.dlx".into()) {
+        d.init();
         d.show();
-    }
-    else {
-        ui::uc1601("a\0".as_ptr(),1);
+    } else {
+        ui::uc1601("a\0".as_ptr(), 1);
     }
     0
 }

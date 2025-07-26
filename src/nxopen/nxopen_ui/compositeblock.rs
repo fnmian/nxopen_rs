@@ -1,12 +1,7 @@
 use core::file;
-use std::os::raw;
 
 use crate::{
-    cstr::AsCstr,
-    nxopen_ui::{block_dialog::DialogWrap, compositeblock, ui, uiblock::{self, UIBlock}},
-    syss,
-    taggedobject::{Tag, TaggedObject},
-    utilities::jam::{jam_lookup_tag, jam_start_wrapped_call},
+    cstr::Cstr, nxopen_ui::uiblock::{self, UIBlock}, syss, taggedobject::{Tag, TaggedObject}, utilities::jam::jam_start_wrapped_call
 };
 
 pub struct CompositeBlock {
@@ -30,7 +25,7 @@ impl UIBlock for CompositeBlock {
         let num = uiblock::xja_block_styler_get_enable(self.ptr, &mut e);
         if num != 0 {
             let err = syss::decode_error(num);
-            syss::error_internal(file!().to_cstring().ptr, line!(), err);
+            syss::error_internal(Cstr::from(file!()).ptr, line!(), err);
         }
         e
     }

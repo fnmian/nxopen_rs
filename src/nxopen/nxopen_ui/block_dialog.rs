@@ -1,6 +1,6 @@
 use std::usize;
 
-use crate::{cstr::Cstr, lazy_load_function, nxopen_ui::ui::{self, UI}, taggedobject::Tag};
+use crate::{cstr::Cstr, lazy_load_function, nxopen_ui::{compositeblock::{self, CompositeBlock}, ui::{self, UI}}, taggedobject::Tag};
 
 pub struct BlockDialog {
     pub(crate) ptr: usize,
@@ -61,7 +61,14 @@ impl BlockDialog {
     pub fn into_dialog_wrap(&self) -> &mut DialogWrap {
        unsafe { &mut *(self.ptr as *mut DialogWrap) }
     }
-
+pub fn get_topblock(&self)->Result<&mut CompositeBlock,i32> {
+    let p:usize = 0;
+   let n=xja_block_styler_dialog_get_top_block(self.ptr, &p as *const usize as _);
+   if n!=0 {
+      return Err(n);
+   }
+   Ok(unsafe { &mut *(p as *mut CompositeBlock) })
+}
     pub fn get_ptr(&self) -> usize {
         self.ptr
     }
@@ -96,7 +103,6 @@ impl BlockDialogUpdate {
     where
         T: Update,
     {
-       // ui::print(&Cstr { ptr:format!("{:X}\n\0",d as *const T as usize).as_ptr() as _ });
         BlockDialogUpdate {
             dlg: d as *const T as *const (),
             func: T::update as *const (),

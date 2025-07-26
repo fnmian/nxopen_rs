@@ -47,6 +47,24 @@ lazy_load_function! {
     }
 }
 
-pub fn print(s:&Cstr){
-    crate::syss::list_uiprintf(s.ptr);
+#[link(name = "./libs/libsyss", kind = "dylib")]
+unsafe extern "C" {
+   #[link_name = "?listUIprintf@@YAXPEBDZZ"]
+    pub fn printf(format: *const u8, ...);
+}
+
+#[macro_export]
+macro_rules! nx_printf {
+    ($fmt:expr, $($arg:expr),*) => {{
+        let c_str:Cstr = Cstr::from($fmt);
+        unsafe {
+            crate::ui::printf(c_str.ptr, $($arg),*);
+        }
+    }};
+    ($fmt:expr) => {{
+        let c_str:Cstr = Cstr::from(($fmt));
+        unsafe {
+            crate::ui::printf(c_str.ptr);
+        }
+    }};
 }

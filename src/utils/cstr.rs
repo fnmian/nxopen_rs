@@ -1,168 +1,31 @@
-use std::ops::{Add, AddAssign};
-
 use crate::{
     syss::error_internal,
-    winapi::{WideCharToMultiByte, free, malloc, realloc, strlen},
+    winapi::{WideCharToMultiByte, free, malloc, strlen},
 };
 
 pub struct Cstr {
-    pub ptr: *mut u8,
+    pub  ptr: *mut u8,
 }
 impl Cstr {
     #[inline]
     pub fn empty() -> Self {
-        let ptr = unsafe { malloc(1) };
+        let mut ptr = unsafe { malloc(1) };
         if ptr.is_null() {
-            error_internal(
-                "Cstr\0".as_ptr(),
-                line!(),
-                "Failed to allocate memory\0".as_ptr(),
-            );
+            ptr = 0 as _;
+        } else {
+            unsafe {
+                *ptr = 0;
+            }
         }
-        unsafe {
-            *ptr = 0;
-        }
-        Self { ptr: ptr }
+        Cstr { ptr: ptr as _ }
     }
-    fn len(&self) -> usize {
+    #[inline]
+   pub fn str_len(&self) -> usize {
         unsafe { strlen(self.ptr) }
     }
     #[inline]
-    pub fn push(&mut self, c: u8) {
-        let current_len = self.len();
-        let new_len = current_len + 1;
-        let new_size = new_len + 1;
-
-        let new_ptr = unsafe { realloc(self.ptr as *mut _, new_size) };
-        if new_ptr.is_null() {
-            error_internal(
-                "Cstr\0".as_ptr(),
-                line!(),
-                "Failed to reallocate memory\0".as_ptr(),
-            );
-        }
-        self.ptr = new_ptr;
-
-        unsafe {
-            let dest = self.ptr.offset(current_len as isize);
-            *dest = c;
-            *dest.offset(1) = 0;
-        }
-    }
-    #[inline]
-    pub fn pop(&mut self) -> Option<u8> {
-        let current_len = self.len();
-        if current_len == 0 {
-            return None;
-        }
-        let c = unsafe { *self.ptr.offset((current_len - 1) as isize) };
-        unsafe {
-            *self.ptr.offset((current_len - 1) as isize) = 0;
-        }
-        Some(c)
-    }
-    #[inline]
-    pub fn append(&mut self, other: &Cstr) {
-        let other_len = other.len();
-        if other_len == 0 {
-            return;
-        }
-        let current_len = self.len();
-        let new_len = current_len + other_len;
-        let new_size = new_len + 1;
-
-        let new_ptr = unsafe { realloc(self.ptr as *mut _, new_size) };
-        if new_ptr.is_null() {
-            error_internal(
-                "Cstr\0".as_ptr(),
-                line!(),
-                "Failed to reallocate memory\0".as_ptr(),
-            );
-        }
-        self.ptr = new_ptr as *mut u8;
-
-        unsafe {
-            let dest_start = self.ptr.offset(current_len as isize);
-            let src_start = other.ptr;
-            for i in 0..other_len as isize {
-                *dest_start.offset(i) = *src_start.offset(i);
-            }
-            *dest_start.offset(other_len as isize) = 0;
-        }
-    }
-}
-impl Add<&Cstr> for &Cstr {
-    type Output = Cstr;
-    #[inline]
-    fn add(self, other: &Cstr) -> Cstr {
-        let new_len = self.len() + other.len();
-        let new_size = new_len + 1;
-
-        let new_ptr = unsafe { malloc(new_size) };
-        if new_ptr.is_null() {
-            error_internal(
-                "Cstr\0".as_ptr(),
-                line!(),
-                "Failed to allocate memory for '+' operator\0".as_ptr(),
-            );
-        }
-
-        unsafe {
-            std::ptr::copy_nonoverlapping(self.ptr, new_ptr, self.len());
-            std::ptr::copy_nonoverlapping(
-                other.ptr,
-                new_ptr.offset(self.len() as isize),
-                other.len(),
-            );
-            *new_ptr.offset(new_len as isize) = 0;
-        }
-
-        Cstr {
-            ptr: new_ptr as *mut u8,
-        }
-    }
-}
-
-impl AddAssign<&Cstr> for Cstr {
-    #[inline]
-    fn add_assign(&mut self, other: &Cstr) {
-        self.append(other);
-    }
-}
-impl Drop for Cstr {
-    #[inline]
-    fn drop(&mut self) {
-        if !self.ptr.is_null() {
-            unsafe { free(self.ptr as _) };
-        }
-    }
-}
-pub trait AsCstr {
-    fn to_cstring(&self) -> Cstr;
-    fn to_ansi(&self) -> Cstr;
-}
-
-impl AsCstr for &str {
-    #[inline]
-    fn to_cstring(&self) -> Cstr {
-        let size = self.len() + 1;
-        let ptr = unsafe { malloc(size) };
-        if ptr.is_null() {
-            error_internal(
-                "Cstr\0".as_ptr(),
-                line!(),
-                "Failed to allocate memory\0".as_ptr(),
-            );
-        }
-        unsafe {
-            std::ptr::copy_nonoverlapping((*self).as_ptr(), ptr, self.len());
-            *ptr.add(self.len()) = 0;
-        }
-        Cstr { ptr: ptr }
-    }
-    #[inline]
-    fn to_ansi(&self) -> Cstr {
-        let mut code_points: Vec<u16> = self.encode_utf16().collect();
+    pub  fn new_ansi(s:&str) -> Cstr {
+        let mut code_points: Vec<u16> = s.encode_utf16().collect();
         code_points.push(0);
 
         let required_size = unsafe {
@@ -215,17 +78,63 @@ impl AsCstr for &str {
         Cstr { ptr: p }
     }
 }
-
-pub trait Tostr {
-    fn to_string(self) -> String;
-}
-impl Tostr for Cstr {
+impl Drop for Cstr {
     #[inline]
-    fn to_string(self) -> String {
-        unsafe {
-            std::ffi::CStr::from_ptr(self.ptr as _)
+    fn drop(&mut self) {
+        if !self.ptr.is_null() {
+            unsafe { free(self.ptr) };
+        }
+    }
+
+}
+
+impl From<&str> for Cstr {
+    #[inline]
+    fn from(value: &str) -> Self {
+        let mut ptr = unsafe { malloc(value.len() + 1) };
+        if ptr.is_null() {
+            ptr = 0 as _;
+        } else {
+            unsafe {
+                std::ptr::copy_nonoverlapping(value.as_ptr(), ptr, value.len());
+                *ptr.add(value.len()) = 0;
+            }
+        }
+        Cstr { ptr: ptr as _ }
+    }
+}
+impl From<Cstr> for String {
+    #[inline]
+    fn from(value: Cstr) -> Self {
+       unsafe {
+            std::ffi::CStr::from_ptr(value.ptr as _)
                 .to_string_lossy()
                 .into_owned()
         }
     }
 }
+impl Clone for Cstr {
+    fn clone(&self) -> Self {
+        if self.ptr.is_null() {
+            return Cstr::empty();
+        }
+        let len = self.str_len();
+        let mut ptr = unsafe { malloc(len + 1) };
+        if ptr.is_null() {
+            ptr = 0 as _;
+        }
+        unsafe {
+            std::ptr::copy_nonoverlapping(self.ptr, ptr, len + 1);
+        }
+        Cstr { ptr }
+    }
+}
+
+impl Default for Cstr {
+    fn default() -> Self {
+        Cstr::empty()
+    }
+}
+
+unsafe impl Send for Cstr {}
+unsafe impl Sync for Cstr {}
