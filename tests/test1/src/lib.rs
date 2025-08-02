@@ -1,14 +1,10 @@
 use nxopen_rs::{
-    cstr::Cstr,
-    nx_printf,
-    nxopen_ui::{
+    cstr::Cstr,nx_println, nxopen_ui::{
         self,
         block_dialog::{BlockDialog, Response, Update},
         ui::{self},
         uiblock::UIBlock,
-    },
-    syss,
-    taggedobject::TaggedObject,
+    }, syss, taggedobject::TaggedObject
 };
 
 pub struct Demo01 {
@@ -36,10 +32,10 @@ impl Demo01 {
 impl Update for Demo01 {
     fn update(&self, bk: usize) -> i32 {
         match self.the_dialog.get_topblock() {
-            Ok(o) => nx_printf!("%d\n", o.get_tag()),
-            Err(e) => nx_printf!("", syss::decode_error(e)),
+            Ok(o) => nx_println!("{}", o.get_tag()),
+            Err(e) => nx_println!("{:p}", syss::decode_error(e)),
         }
-        nx_printf!("%p", bk);
+        nx_println!("{:X}", bk);
         0
     }
 }

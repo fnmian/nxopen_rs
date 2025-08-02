@@ -23,6 +23,7 @@ impl Cstr {
    pub fn str_len(&self) -> usize {
         unsafe { strlen(self.ptr) }
     }
+   
     #[inline]
     pub  fn new_ansi(s:&str) -> Cstr {
         let mut code_points: Vec<u16> = s.encode_utf16().collect();

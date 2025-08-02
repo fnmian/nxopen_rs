@@ -1,7 +1,11 @@
 use crate::{
-    cstr::Cstr, lazy_load_function, nxopen_ui::block_dialog::BlockDialog, syss, taggedobject::{Tag, TaggedObject}, utilities::jam
+    cstr::Cstr,
+    lazy_load_function,
+    nxopen_ui::block_dialog::BlockDialog,
+    syss,
+    taggedobject::{Tag, TaggedObject},
+    utilities::jam,
 };
-
 
 pub struct UI {
     tag: Tag,
@@ -9,9 +13,9 @@ pub struct UI {
 }
 
 impl UI {
-#[allow(non_snake_case)]
+    #[allow(non_snake_case)]
     pub fn GetUI() -> Self {
-        let t =jam::lookup_singleton_tag("NXOpen.UI\0".as_ptr());
+        let t = jam::lookup_singleton_tag("NXOpen.UI\0".as_ptr());
         let ptr = jam::jam_lookup_tag(t);
         Self { tag: t, ptr: ptr }
     }
@@ -22,7 +26,7 @@ impl UI {
         if errcode != 0 {
             return Err(errcode);
         }
-        Ok(BlockDialog { ptr: dialog})
+        Ok(BlockDialog { ptr: dialog })
     }
 }
 
@@ -47,24 +51,19 @@ lazy_load_function! {
     }
 }
 
-#[link(name = "./libs/libsyss", kind = "dylib")]
-unsafe extern "C" {
-   #[link_name = "?listUIprintf@@YAXPEBDZZ"]
-    pub fn printf(format: *const u8, ...);
+lazy_load_function! {
+    pub fn list_uiprintf(format: *const u8){dll:"libsyss.dll",func:"?listUIprintf@@YAXPEBDZZ"}
 }
 
 #[macro_export]
-macro_rules! nx_printf {
-    ($fmt:expr, $($arg:expr),*) => {{
-        let c_str:Cstr = Cstr::from($fmt);
-        unsafe {
-            crate::ui::printf(c_str.ptr, $($arg),*);
+macro_rules! nx_println {
+($($arg:tt)*) => {{
+    let mut formatted_string = format!($($arg)*);
+    formatted_string.push('\n');
+    let c_string = crate::Cstr::from(formatted_string.as_str());
+    if !c_string.ptr.is_null() {
+    unsafe {
+            crate::ui::list_uiprintf(c_string.ptr);
         }
-    }};
-    ($fmt:expr) => {{
-        let c_str:Cstr = Cstr::from(($fmt));
-        unsafe {
-            crate::ui::printf(c_str.ptr);
-        }
-    }};
+    }}};
 }

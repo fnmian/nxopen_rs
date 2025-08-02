@@ -29,9 +29,7 @@ lazy_load_function! {
 lazy_load_function! {
     pub fn decode_error(code:i32) -> *const u8{dll:"libsyss.dll",func:"?ERROR_decode@@YAPEADH@Z"}
 }
-
-#[link(name = "./libs/libsyss", kind = "dylib")]
-unsafe extern "C" {
-   #[link_name = "?listUIprintf@@YAXPEBDZZ"]
-    pub fn list_uiprintf(format: *const u8, ...);
+lazy_load_function! {
+    pub fn list_uiprintf(format: *const u8){dll:"libsyss.dll",func:"?listUIprintf@@YAXPEBDZZ"}
 }
+
