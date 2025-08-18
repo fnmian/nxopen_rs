@@ -1,0 +1,20 @@
+
+[package]
+name = "nxopen_rs"
+version = "0.1.1"
+edition = "2024"
+authors = ["Your Name <your@email.com>"]
+license = "MIT OR Apache-2.0"
+description = "A brief description of your crate"
+homepage = "https://github.com/fnmian/nxopen_rs"
+repository = "https://github.com/fnmian/nxopen_rs"
+readme = "README.md"
+
+
+[dependencies]
+
+
+[workspace]
+members = [
+    "tests/test1",
+]
