@@ -1,4 +1,4 @@
-use crate::winapi::{WideCharToMultiByte, free, malloc, strlen};
+use crate::{winapi::{free, malloc, strlen, WideCharToMultiByte}};
 
 pub struct Cstr {
     pub ptr: *const u8,
