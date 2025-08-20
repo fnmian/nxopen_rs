@@ -22,7 +22,7 @@ pub struct Demo01 {
 }
 impl Demo01 {
     pub fn new(name:Cstr) -> Result<Self, String> {
-        let d = nxopen_rs::blockstyler::blockdialog::create_dialog(&name);
+        let d = nxopen_rs::blockstyler::blockdialog::create_dialog(name);
         match d {
             Ok(dlg) => Ok({
                 let d = Demo01 {the_dialog: dlg };
@@ -39,7 +39,7 @@ impl Demo01 {
 }
 impl Initialize for Demo01 {
     fn initialize(&self) {
-        
+        nx_println!("{}","Initialize");
     }
 }
 impl Update for Demo01 {

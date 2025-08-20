@@ -1,16 +1,15 @@
-
 use crate::cstr::Cstr;
 use crate::utilities::jam::JAM_start_wrapped_call;
-use crate::{debugbreak, jam,p_ss};
+use crate::{debugbreak, jam, p_ss};
 
 #[derive(Clone)]
 pub struct BlockDialog {
-   ptr: usize,
+    ptr: Option<usize>,
 }
-
 
 impl BlockDialog {
     pub fn show(&self) -> Result<Response, String> {
+        unsafe { JAM_start_wrapped_call() };
         let mut response: Response = Response::Back;
         let num = unsafe { X18JA_BLOCK_STYLER_DIALOG_show(self.get_ptr(), &mut response) };
         if num != 0 {
@@ -19,27 +18,35 @@ impl BlockDialog {
         Ok(response)
     }
     pub fn get_ptr(&self) -> usize {
-        self.ptr
+        match self.ptr {
+            Some(p) => p,
+            None => {
+                debugbreak();
+                0
+            }
+        }
     }
     pub(crate) fn into_dialog_wrap(&self) -> &mut DialogWrap {
-       unsafe { &mut *(self.get_ptr() as *mut DialogWrap) }
+        unsafe { &mut *(self.get_ptr() as *mut DialogWrap) }
     }
     pub fn add_update_handler(&self, app: impl Update + 'static) {
-       self.into_dialog_wrap().call_backs.update=Some(Box::new(BlockDialogUpdateAdapter::new(app)))
+        self.into_dialog_wrap().call_backs.update =
+            Some(Box::new(BlockDialogUpdateAdapter::new(app)))
     }
     pub fn add_update_initialize(&self, app: impl Initialize + 'static) {
-       self.into_dialog_wrap().call_backs.initialize=Some(Box::new(BlockDialogInitializeAdapter::new(app)))
+        self.into_dialog_wrap().call_backs.initialize =
+            Some(Box::new(BlockDialogInitializeAdapter::new(app)))
     }
 }
-    pub fn create_dialog(dialog_name: &Cstr) -> Result<BlockDialog, String> {
-        let mut dialog: usize = 0;
-        unsafe { JAM_start_wrapped_call() };
-        let errcode = unsafe { XJA_UI_MAIN_create_dialog(dialog_name.ptr, &mut dialog) };
-        if errcode != 0 {
-            return Err(p_ss!(jam::ERROR_decode(errcode)));
-        }
-        Ok(BlockDialog {ptr: dialog })
+pub fn create_dialog(dialog_name: Cstr) -> Result<BlockDialog, String> {
+    let mut dialog: usize = 0;
+    unsafe { JAM_start_wrapped_call() };
+    let errcode = unsafe { XJA_UI_MAIN_create_dialog(dialog_name.ptr, &mut dialog) };
+    if errcode != 0 {
+        return Err(p_ss!(jam::ERROR_decode(errcode)));
     }
+    Ok(BlockDialog { ptr: Some(dialog) })
+}
 struct CallBackAdapter {
     _free: usize,
     _clone: usize,
@@ -63,12 +70,13 @@ impl BlockDialogUpdateAdapter {
             data: Some(Box::new(app)),
         }
     }
-    fn free(&self){
-
-    }
+    fn free(&self) {}
     fn adapter(&self, styler_item: usize) -> i32 {
         match &self.data {
-            Some(d) => d.update(styler_item),
+            Some(d) => {
+                unsafe { JAM_start_wrapped_call() };
+                d.update(styler_item)
+            }
             None => {
                 debugbreak();
                 0
@@ -76,7 +84,6 @@ impl BlockDialogUpdateAdapter {
         }
     }
 }
-
 
 struct BlockDialogInitializeAdapter {
     _vt: Box<CallBackAdapter>,
@@ -94,12 +101,13 @@ impl BlockDialogInitializeAdapter {
             data: Some(Box::new(app)),
         }
     }
-    fn free(&self) {
-        
-    }
-    fn adapter(&self){
+    fn free(&self) {}
+    fn adapter(&self) {
         match &self.data {
-            Some(d) => d.initialize(),
+            Some(d) => {
+                unsafe { JAM_start_wrapped_call() };
+                d.initialize()
+            }
             None => {
                 debugbreak();
             }
@@ -130,11 +138,12 @@ struct DlgCallback {
 }
 impl Drop for BlockDialog {
     fn drop(&mut self) {
-        if self.ptr != 0 {
+        if self.ptr != None {
             unsafe {
-                XJA_BLOCK_STYLER_DIALOG_dispose(self.ptr);
+                JAM_start_wrapped_call();
+                XJA_BLOCK_STYLER_DIALOG_dispose(self.ptr.unwrap());
             }
-           self.ptr=0;
+            self.ptr = None;
         }
     }
 }

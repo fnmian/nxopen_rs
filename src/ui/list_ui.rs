@@ -26,10 +26,9 @@ macro_rules! nx_println {
 ($($arg:tt)*) => {{
     let mut formatted_string = format!($($arg)*);
     formatted_string.push('\n');
-    let c_string = nxopen_rs::cstr::Cstr::from(formatted_string.as_str());
-    if !c_string.ptr.is_null() {
+    formatted_string.push('\0');
     unsafe {
-       nxopen_rs::list_ui::list_uiprintf(c_string.ptr);
+       nxopen_rs::list_ui::list_uiprintf(formatted_string.as_ptr());
         }
-    }}};
+    }};
 }

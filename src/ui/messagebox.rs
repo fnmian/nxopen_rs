@@ -34,20 +34,16 @@ macro_rules! nx_msgbox {
        
         let message_string = format!($($arg)*);
         let title_cstr = nxopen_rs::cstr::Cstr::from($title);
-        let message_cstr = nxopen_rs::cstr::Cstr::from(message_string.as_str());
-        
-        if !title_cstr.ptr.is_null() && !message_cstr.ptr.is_null() {
             unsafe {
                 unsafe { nxopen_rs::jam::JAM_start_wrapped_call()};
                 let mut result = 0;
                 let _ =nxopen_rs::messagebox::X0JA_NXMESSAGE_BOX_show(
                     title_cstr.ptr,
                     $msgbox_type,
-                    message_cstr.ptr,
+                    message_string.as_ptr(),
                     &mut result
                 );
             }
-        }
     }};
 }
 /// ANSI版本消息框宏
