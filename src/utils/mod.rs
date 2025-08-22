@@ -1,3 +1,4 @@
+
 pub mod cstr;
 pub mod load_function;
 pub mod winapi;
@@ -111,7 +112,7 @@ macro_rules! p_s {
         unsafe {
             std::str::from_utf8_unchecked(std::slice::from_raw_parts(
                 $ptr,
-                nxopen_rs::winapi::strlen($ptr),
+                crate::winapi::strlen($ptr),
             ))
         }
     };

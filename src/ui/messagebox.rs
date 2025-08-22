@@ -32,18 +32,22 @@ unsafe extern "C" {
 macro_rules! nx_msgbox {
     ($title:expr, $msgbox_type:expr, $($arg:tt)*) => {{
        
-        let message_string = format!($($arg)*);
-        let title_cstr = nxopen_rs::cstr::Cstr::from($title);
+        let mut message_string = format!($($arg)*);
+        message_string.push('\0');
             unsafe {
                 unsafe { nxopen_rs::jam::JAM_start_wrapped_call()};
                 let mut result = 0;
                 let _ =nxopen_rs::messagebox::X0JA_NXMESSAGE_BOX_show(
-                    title_cstr.ptr,
+                    nxopen_rs::s!($title),
                     $msgbox_type,
                     message_string.as_ptr(),
                     &mut result
                 );
+                result
             }
+    }};
+    ($($arg:tt)*) => {{
+        $crate::nx_msgbox!("Message", nxopen_rs::messagebox::DialogType::Information, $($arg)*)
     }};
 }
 /// ANSI版本消息框宏
@@ -64,21 +68,24 @@ macro_rules! nx_msgbox_ansi {
     ($title:expr, $msgbox_type:expr, $($arg:tt)*) => {{
        
         let message_string = format!($($arg)*);
-        let title_cstr = nxopen_rs::cstr::Cstr::new_ansi($title);
-        let message_cstr = nxopen_rs::cstr::Cstr::new_ansi(message_string.as_str());
+        let title_cstr = nxopen_rs::cstr::CstrAnsi::new($title);
+        let message_cstr = nxopen_rs::cstr::CstrAnsi::new(message_string.as_str());
         
-        if !title_cstr.ptr.is_null() && !message_cstr.ptr.is_null() {
+        if !title_cstr.get_ptr().is_null() && !message_cstr.get_ptr().is_null() {
             unsafe {
                 unsafe { nxopen_rs::jam::JAM_start_wrapped_call()};
                 let mut result = 0;
                 let _ =nxopen_rs::messagebox::X0JA_NXMESSAGE_BOX_show(
-                    title_cstr.ptr,
+                    title_cstr.get_ptr(),
                     $msgbox_type,
-                    message_cstr.ptr,
+                    message_cstr.get_ptr(),
                     &mut result
                 );
             }
         }
+    }};
+    ($($arg:tt)*) => {{
+        $crate::nx_msgbox!("Message", nxopen_rs::messagebox::DialogType::Information, $($arg)*)
     }};
 }
 

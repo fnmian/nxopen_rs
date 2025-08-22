@@ -1,8 +1,11 @@
+use crate::blockstyler::compositeblock::CompositeBlock;
+
+use crate::blockstyler::uiblock::UIBlock;
 use crate::cstr::Cstr;
 use crate::utilities::jam::JAM_start_wrapped_call;
-use crate::{debugbreak, jam, p_ss};
+use crate::{debugbreak, jam, p_ss, CstrPtr};
 
-#[derive(Clone)]
+#[derive(Clone,Default)]
 pub struct BlockDialog {
     ptr: Option<usize>,
 }
@@ -33,9 +36,31 @@ impl BlockDialog {
         self.into_dialog_wrap().call_backs.update =
             Some(Box::new(BlockDialogUpdateAdapter::new(app)))
     }
-    pub fn add_update_initialize(&self, app: impl Initialize + 'static) {
+    pub fn add_update_initialize<'a>(&self, app: impl Initialize + 'static) {
         self.into_dialog_wrap().call_backs.initialize =
             Some(Box::new(BlockDialogInitializeAdapter::new(app)))
+    }
+    pub fn get_topblock(&self) -> Result<CompositeBlock, CstrPtr> {
+        unsafe {
+            JAM_start_wrapped_call();
+            let mut p = 0;
+            let n = XJA_BLOCK_STYLER_DIALOG_get_TopBlock(self.get_ptr(), &mut p);
+            if n != 0 {
+                return Err(jam::ERROR_decode(n));
+            }
+            Ok(CompositeBlock { ptr: p })
+        }
+    }
+    pub fn find_block(&self, block_name: Cstr) -> Result<UIBlock, CstrPtr> {
+        unsafe {
+            JAM_start_wrapped_call();
+            let mut p = 0;
+            let n = XJA_BLOCK_STYLER_find_block(self.get_topblock().unwrap().ptr,block_name.ptr, &mut p);
+            if n != 0 {
+                return Err(jam::ERROR_decode(n));
+            }
+            Ok(UIBlock { ptr: p })
+        }
     }
 }
 pub fn create_dialog(dialog_name: Cstr) -> Result<BlockDialog, String> {
@@ -75,7 +100,7 @@ impl BlockDialogUpdateAdapter {
         match &self.data {
             Some(d) => {
                 unsafe { JAM_start_wrapped_call() };
-                d.update(styler_item)
+                d.update(UIBlock { ptr: styler_item })
             }
             None => {
                 debugbreak();
@@ -102,8 +127,8 @@ impl BlockDialogInitializeAdapter {
         }
     }
     fn free(&self) {}
-    fn adapter(&self) {
-        match &self.data {
+    fn adapter(&mut self) {
+        match &mut self.data {
             Some(d) => {
                 unsafe { JAM_start_wrapped_call() };
                 d.initialize()
@@ -164,13 +189,18 @@ unsafe extern "C" {
 #[link(name = "libnxblockstyler", kind = "dylib")]
 unsafe extern "C" {
     pub fn X18JA_BLOCK_STYLER_DIALOG_show(dialog: usize, out: &mut Response) -> i32;
-    pub fn XJA_BLOCK_STYLER_DIALOG_get_TopBlock(dialog: usize, top_block: *const ()) -> i32;
+    pub fn XJA_BLOCK_STYLER_DIALOG_get_TopBlock(dialog: usize, top_block: &mut usize) -> i32;
     pub fn XJA_BLOCK_STYLER_DIALOG_dispose(dialog: usize) -> i32;
+    pub fn XJA_BLOCK_STYLER_find_block(
+        dialog: usize,
+        block_name: CstrPtr,
+        block: &mut usize,
+    ) -> i32;
 }
 
 pub trait Update {
-    fn update(&self, styler_item: usize) -> i32;
+    fn update(&self, block: UIBlock) -> i32;
 }
 pub trait Initialize {
-    fn initialize(&self);
+    fn initialize(&mut self);
 }

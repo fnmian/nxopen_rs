@@ -31,3 +31,9 @@ unsafe extern "C" {
     pub fn strlen(cs: *const u8) -> usize;
 
 }
+unsafe extern "C" {
+    pub fn memset(ptr: usize, val: i32, size: usize);
+    pub fn memcpy(ptr: usize, src: usize, size: usize);
+    pub fn memmove(ptr: usize, src: usize, size: usize);
+    pub fn memcmp(buf1: usize, buf2: usize, size: usize) -> i32;
+}
