@@ -1,12 +1,12 @@
-use crate::{impl_TaggedObject_trait, impl_UIBlock_trait};
+use crate::blockstyler::uiblock::{IUIBlock, UIBlock};
 
 
 #[derive(Clone)]
 pub struct CompositeBlock {
     pub(crate) ptr: usize,
 }
-impl CompositeBlock {
-    
+impl IUIBlock for CompositeBlock {
+    fn uiblock(&self)->UIBlock {
+        UIBlock { ptr: self.ptr }
+    }
 }
-impl_TaggedObject_trait!(CompositeBlock);
-impl_UIBlock_trait!(CompositeBlock);

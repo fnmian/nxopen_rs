@@ -1,4 +1,4 @@
-use crate::{blockstyler::uiblock::UIBlock, impl_TaggedObject_trait, impl_UIBlock_trait};
+use crate::blockstyler::uiblock::{IUIBlock, UIBlock};
 
 
 
@@ -11,6 +11,7 @@ impl Button {
     pub fn new(btptr:usize)->Self {
         Button { ptr: btptr }
     }
+
 }
 
 impl From<UIBlock> for Button {
@@ -18,6 +19,8 @@ impl From<UIBlock> for Button {
         Button { ptr: value.ptr }
     }
 }
-
-impl_UIBlock_trait!(Button);
-impl_TaggedObject_trait!(Button);
+impl IUIBlock for Button {
+    fn uiblock(&self)->UIBlock {
+        UIBlock { ptr: self.ptr }
+    }
+}

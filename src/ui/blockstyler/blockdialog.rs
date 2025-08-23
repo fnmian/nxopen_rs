@@ -1,13 +1,18 @@
+use std::any::Any;
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::blockstyler::compositeblock::CompositeBlock;
 
 use crate::blockstyler::uiblock::UIBlock;
 use crate::cstr::Cstr;
 use crate::utilities::jam::JAM_start_wrapped_call;
-use crate::{debugbreak, jam, p_ss, CstrPtr};
+use crate::{CstrPtr, debugbreak, jam, p_ss};
 
-#[derive(Clone,Default)]
+#[derive(Clone, Default)]
 pub struct BlockDialog {
     ptr: Option<usize>,
+    app: Option<Rc<RefCell<dyn Application>>>,
 }
 
 impl BlockDialog {
@@ -32,13 +37,14 @@ impl BlockDialog {
     pub(crate) fn into_dialog_wrap(&self) -> &mut DialogWrap {
         unsafe { &mut *(self.get_ptr() as *mut DialogWrap) }
     }
-    pub fn add_update_handler(&self, app: impl Update + 'static) {
+    pub fn add_update_handler(&self) {
         self.into_dialog_wrap().call_backs.update =
-            Some(Box::new(BlockDialogUpdateAdapter::new(app)))
+            Some(Box::new(BlockDialogUpdateAdapter::new(self.app.clone())))
     }
-    pub fn add_update_initialize<'a>(&self, app: impl Initialize + 'static) {
-        self.into_dialog_wrap().call_backs.initialize =
-            Some(Box::new(BlockDialogInitializeAdapter::new(app)))
+    pub fn add_update_initialize(&self) {
+        self.into_dialog_wrap().call_backs.initialize = Some(Box::new(
+            BlockDialogInitializeAdapter::new(self.app.clone()),
+        ))
     }
     pub fn get_topblock(&self) -> Result<CompositeBlock, CstrPtr> {
         unsafe {
@@ -55,22 +61,35 @@ impl BlockDialog {
         unsafe {
             JAM_start_wrapped_call();
             let mut p = 0;
-            let n = XJA_BLOCK_STYLER_find_block(self.get_topblock().unwrap().ptr,block_name.ptr, &mut p);
+            let n = XJA_BLOCK_STYLER_find_block(
+                self.get_topblock().unwrap().ptr,
+                block_name.ptr,
+                &mut p,
+            );
             if n != 0 {
                 return Err(jam::ERROR_decode(n));
             }
             Ok(UIBlock { ptr: p })
         }
     }
+    pub fn get_app(&self) -> Option<Rc<RefCell<(dyn Application + 'static)>>> {
+        self.app.clone()
+    }
 }
-pub fn create_dialog(dialog_name: Cstr) -> Result<BlockDialog, String> {
+pub fn create_dialog(
+    app: impl Application + 'static,
+    dialog_name: Cstr,
+) -> Result<BlockDialog, String> {
     let mut dialog: usize = 0;
     unsafe { JAM_start_wrapped_call() };
     let errcode = unsafe { XJA_UI_MAIN_create_dialog(dialog_name.ptr, &mut dialog) };
     if errcode != 0 {
         return Err(p_ss!(jam::ERROR_decode(errcode)));
     }
-    Ok(BlockDialog { ptr: Some(dialog) })
+    Ok(BlockDialog {
+        ptr: Some(dialog),
+        app: Some(Rc::new(RefCell::new(app))),
+    })
 }
 struct CallBackAdapter {
     _free: usize,
@@ -81,10 +100,10 @@ struct CallBackAdapter {
 
 struct BlockDialogUpdateAdapter {
     _vt: Box<CallBackAdapter>,
-    data: Option<Box<dyn Update>>,
+    data: Option<Rc<RefCell<(dyn Application + 'static)>>>,
 }
 impl BlockDialogUpdateAdapter {
-    pub(crate) fn new(app: impl Update + 'static) -> Self {
+    pub(crate) fn new(app: Option<Rc<RefCell<(dyn Application + 'static)>>>) -> Self {
         BlockDialogUpdateAdapter {
             _vt: Box::new(CallBackAdapter {
                 _free: BlockDialogUpdateAdapter::free as *const () as usize,
@@ -92,7 +111,7 @@ impl BlockDialogUpdateAdapter {
                 _equal: 0,
                 _adapter: BlockDialogUpdateAdapter::adapter as *const () as usize,
             }),
-            data: Some(Box::new(app)),
+            data: app,
         }
     }
     fn free(&self) {}
@@ -100,7 +119,7 @@ impl BlockDialogUpdateAdapter {
         match &self.data {
             Some(d) => {
                 unsafe { JAM_start_wrapped_call() };
-                d.update(UIBlock { ptr: styler_item })
+                d.borrow().update(UIBlock { ptr: styler_item })
             }
             None => {
                 debugbreak();
@@ -112,10 +131,10 @@ impl BlockDialogUpdateAdapter {
 
 struct BlockDialogInitializeAdapter {
     _vt: Box<CallBackAdapter>,
-    data: Option<Box<dyn Initialize>>,
+    data: Option<Rc<RefCell<(dyn Application + 'static)>>>,
 }
 impl BlockDialogInitializeAdapter {
-    pub(crate) fn new(app: impl Initialize + 'static) -> Self {
+    pub(crate) fn new(app: Option<Rc<RefCell<(dyn Application + 'static)>>>) -> Self {
         BlockDialogInitializeAdapter {
             _vt: Box::new(CallBackAdapter {
                 _free: BlockDialogInitializeAdapter::free as *const () as usize,
@@ -123,7 +142,7 @@ impl BlockDialogInitializeAdapter {
                 _equal: 0,
                 _adapter: BlockDialogInitializeAdapter::adapter as *const () as usize,
             }),
-            data: Some(Box::new(app)),
+            data: app,
         }
     }
     fn free(&self) {}
@@ -131,7 +150,7 @@ impl BlockDialogInitializeAdapter {
         match &mut self.data {
             Some(d) => {
                 unsafe { JAM_start_wrapped_call() };
-                d.initialize()
+                d.borrow_mut().initialize()
             }
             None => {
                 debugbreak();
@@ -198,9 +217,11 @@ unsafe extern "C" {
     ) -> i32;
 }
 
-pub trait Update {
-    fn update(&self, block: UIBlock) -> i32;
-}
-pub trait Initialize {
-    fn initialize(&mut self);
+pub trait Application: Any + 'static {
+    fn update(&self, block: UIBlock) -> i32 {
+        let _ = block;
+        0
+    }
+    fn initialize(&mut self) {}
+    fn as_any(&mut self) -> &mut dyn Any;
 }

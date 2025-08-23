@@ -1,3 +1,3 @@
 pub mod jam;
 pub mod om;
-pub mod itaggedobject;
+pub mod taggedobject;
