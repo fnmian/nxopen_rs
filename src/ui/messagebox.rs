@@ -64,12 +64,12 @@ macro_rules! nx_msgbox {
 /// - `$msgbox_type`: 消息框类型，如`DialogType::Information`
 /// - `$($arg)*`: 格式化的消息内容，支持`format!`语法
 #[macro_export]
-macro_rules! nx_msgbox_ansi {
+macro_rules! nx_msgboxa {
     ($title:expr, $msgbox_type:expr, $($arg:tt)*) => {{
        
         let message_string = format!($($arg)*);
-        let title_cstr = nxopen_rs::cstr::CstrAnsi::new($title);
-        let message_cstr = nxopen_rs::cstr::CstrAnsi::new(message_string.as_str());
+        let title_cstr = nxopen_rs::cstr::NXstrA::new($title);
+        let message_cstr = nxopen_rs::cstr::NXstrA::new(message_string.as_str());
         
         if !title_cstr.get_ptr().is_null() && !message_cstr.get_ptr().is_null() {
             unsafe {
@@ -85,7 +85,7 @@ macro_rules! nx_msgbox_ansi {
         }
     }};
     ($($arg:tt)*) => {{
-        $crate::nx_msgbox!("Message", nxopen_rs::messagebox::DialogType::Information, $($arg)*)
+        $crate::nx_msgboxa!("Message", nxopen_rs::messagebox::DialogType::Information, $($arg)*)
     }};
 }
 

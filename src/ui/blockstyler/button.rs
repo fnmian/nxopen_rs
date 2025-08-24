@@ -20,7 +20,7 @@ impl From<UIBlock> for Button {
     }
 }
 impl IUIBlock for Button {
-    fn uiblock(&self)->UIBlock {
+    fn block(&self)->UIBlock {
         UIBlock { ptr: self.ptr }
     }
 }

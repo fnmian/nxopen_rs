@@ -2,14 +2,15 @@ use core::fmt;
 
 use crate::{
     jam::{SM_alloc, SM_free},
-     p_s,
-    winapi::{WideCharToMultiByte, memcpy, strlen},
+    p_s,
+    winapi::{WideCharToMultiByte, free, memcpy, strlen},
 };
 
-pub struct Cstr {
+#[derive(Debug)]
+pub struct NXstr {
     pub(crate) ptr: *const u8,
 }
-impl Cstr {
+impl NXstr {
     #[inline]
     pub fn empty() -> Self {
         let mut ptr = unsafe { SM_alloc(1) };
@@ -20,14 +21,14 @@ impl Cstr {
                 *ptr = 0;
             }
         }
-        Cstr { ptr: ptr as _ }
+        NXstr { ptr: ptr as _ }
     }
     #[inline]
     pub fn str_len(&self) -> usize {
         unsafe { strlen(self.ptr) }
     }
     #[inline]
-    pub fn from_ptr(src: *const u8, do_free: bool) -> Self {
+    pub fn from_nxstr_ptr(src: *const u8, do_free: bool) -> Self {
         let len = unsafe { strlen(src) + 1 };
         let mut ptr = unsafe { SM_alloc(len) };
         if ptr.is_null() {
@@ -38,14 +39,28 @@ impl Cstr {
         if do_free {
             unsafe { SM_free(src) };
         }
-        Cstr { ptr: ptr as _ }
+        NXstr { ptr: ptr as _ }
+    }
+    #[inline]
+    pub fn from_cstr_ptr(src: *const u8, do_free: bool) -> Self {
+        let len = unsafe { strlen(src) + 1 };
+        let mut ptr = unsafe { SM_alloc(len) };
+        if ptr.is_null() {
+            ptr = 0 as _;
+        } else {
+            unsafe { memcpy(ptr as _, src as _, len) };
+        }
+        if do_free {
+            unsafe { free(src) };
+        }
+        NXstr { ptr: ptr as _ }
     }
     #[inline]
     pub const fn get_ptr(&self) -> *const u8 {
         self.ptr
     }
 }
-impl Drop for Cstr {
+impl Drop for NXstr {
     #[inline]
     fn drop(&mut self) {
         if !self.ptr.is_null() {
@@ -55,7 +70,7 @@ impl Drop for Cstr {
     }
 }
 
-impl From<&str> for Cstr {
+impl From<&str> for NXstr {
     #[inline]
     fn from(value: &str) -> Self {
         let mut ptr = unsafe { SM_alloc(value.len() + 1) };
@@ -67,12 +82,27 @@ impl From<&str> for Cstr {
                 *ptr.add(value.len()) = 0;
             }
         }
-        Cstr { ptr: ptr as _ }
+        NXstr { ptr: ptr as _ }
     }
 }
-impl From<Cstr> for String {
+impl From<String> for NXstr {
     #[inline]
-    fn from(value: Cstr) -> Self {
+    fn from(value: String) -> Self {
+        let mut ptr = unsafe { SM_alloc(value.len() + 1) };
+        if ptr.is_null() {
+            ptr = 0 as _;
+        } else {
+            unsafe {
+                std::ptr::copy_nonoverlapping(value.as_ptr(), ptr, value.len());
+                *ptr.add(value.len()) = 0;
+            }
+        }
+        NXstr { ptr: ptr as _ }
+    }
+}
+impl From<NXstr> for String {
+    #[inline]
+    fn from(value: NXstr) -> Self {
         unsafe {
             std::ffi::CStr::from_ptr(value.ptr as _)
                 .to_string_lossy()
@@ -80,10 +110,11 @@ impl From<Cstr> for String {
         }
     }
 }
-impl Clone for Cstr {
+
+impl Clone for NXstr {
     fn clone(&self) -> Self {
         if self.ptr.is_null() {
-            return Cstr::empty();
+            return NXstr::empty();
         }
         let len = self.str_len();
         let mut ptr = unsafe { SM_alloc(len + 1) };
@@ -93,34 +124,35 @@ impl Clone for Cstr {
         unsafe {
             std::ptr::copy_nonoverlapping(self.ptr, ptr, len + 1);
         }
-        Cstr { ptr }
+        NXstr { ptr }
     }
 }
 
-impl Default for Cstr {
+impl Default for NXstr {
     fn default() -> Self {
-        Cstr::empty()
+        NXstr::empty()
     }
 }
-impl fmt::Display for Cstr {
+impl fmt::Display for NXstr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.ptr.is_null() {
-            write!(f, "String.empty")
+            write!(f, "\0")
         } else {
             write!(f, "{}", p_s!(self.ptr))
         }
     }
 }
 
-unsafe impl Send for Cstr {}
-unsafe impl Sync for Cstr {}
+unsafe impl Send for NXstr {}
+unsafe impl Sync for NXstr {}
 
-pub struct CstrAnsi {
+#[derive(Debug)]
+pub struct NXstrA {
     pub(crate) ptr: *const u8,
 }
-impl CstrAnsi {
+impl NXstrA {
     #[inline]
-    pub fn new(s: &str) -> CstrAnsi {
+    pub fn new(s: &str) -> NXstrA {
         let mut code_points: Vec<u16> = s.encode_utf16().collect();
         code_points.push(0);
 
@@ -163,14 +195,14 @@ impl CstrAnsi {
             unsafe { SM_free(p as _) };
             unsafe { std::arch::asm!("int 3") };
         }
-        CstrAnsi { ptr: p }
+        NXstrA { ptr: p }
     }
     #[inline]
     pub const fn get_ptr(&self) -> *const u8 {
         self.ptr
     }
 }
-impl Drop for CstrAnsi {
+impl Drop for NXstrA {
     #[inline]
     fn drop(&mut self) {
         if !self.ptr.is_null() {
@@ -178,3 +210,5 @@ impl Drop for CstrAnsi {
         }
     }
 }
+unsafe impl Send for NXstrA {}
+unsafe impl Sync for NXstrA {}

@@ -1,12 +1,12 @@
 use crate::{
-    blockstyler::button::Button, cstr::Cstr, jam::{
+    blockstyler::button::Button, cstr::NXstr, jam::{
         self, JAM_ask_object_tag, JAM_start_wrapped_call, TEXT_create_string, TEXT_free,
         TEXT_to_locale,
-    }, taggedobject::TaggedObject, CstrPtr, Tag
+    }, taggedobject::TaggedObject, Tag
 };
 
 pub trait IUIBlock {
-    fn uiblock(&self)->UIBlock;
+    fn block(&self)->UIBlock;
 }
 
 #[derive(Clone)]
@@ -15,7 +15,7 @@ pub struct UIBlock {
 }
 impl PartialEq<Button> for UIBlock {
     fn eq(&self, other: &Button) -> bool {
-        self.ptr==other.uiblock().ptr
+        self.ptr==other.block().ptr
     }
 }
 
@@ -24,130 +24,130 @@ impl UIBlock {
     pub fn new(p: usize) -> Self {
         UIBlock { ptr: p }
     }
-    pub fn get_enable(&self) -> Result<bool, CstrPtr> {
+    pub fn get_enable(&self) -> Result<bool, NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let mut p = false;
         let n = unsafe { XJA_BLOCK_STYLER_get_enable(self.ptr, &mut p) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
         Ok(p)
     }
 
-    pub fn set_enable(&self, value: bool) -> Result<(), CstrPtr> {
+    pub fn set_enable(&self, value: bool) -> Result<(), NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let n = unsafe { XJA_BLOCK_STYLER_set_enable(self.ptr, value) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
         Ok(())
     }
 
-    pub fn get_expanded(&self) -> Result<bool, CstrPtr> {
+    pub fn get_expanded(&self) -> Result<bool, NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let mut p = false;
         let n = unsafe { XJA_BLOCK_STYLER_get_expanded(self.ptr, &mut p) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
         Ok(p)
     }
 
-    pub fn set_expanded(&self, value: bool) -> Result<(), CstrPtr> {
+    pub fn set_expanded(&self, value: bool) -> Result<(), NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let n = unsafe { XJA_BLOCK_STYLER_set_expanded(self.ptr, value) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
         Ok(())
     }
 
-    pub fn get_group(&self) -> Result<bool, CstrPtr> {
+    pub fn get_group(&self) -> Result<bool, NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let mut p = false;
         let n = unsafe { XJA_BLOCK_STYLER_get_group(self.ptr, &mut p) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
         Ok(p)
     }
 
-    pub fn set_group(&self, value: bool) -> Result<(), CstrPtr> {
+    pub fn set_group(&self, value: bool) -> Result<(), NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let n = unsafe { XJA_BLOCK_STYLER_set_group(self.ptr, value) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
         Ok(())
     }
 
-    pub fn get_label(&self) -> Result<Cstr, CstrPtr> {
+    pub fn get_label(&self) -> Result<NXstr, NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let mut p = 0;
         let n = unsafe { XJA_BLOCK_STYLER_get_label(self.ptr, &mut p) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
         let str = unsafe { TEXT_to_locale(p) };
         unsafe { TEXT_free(p as _) };
-        Ok(Cstr::from_ptr(str, true))
+        Ok(NXstr::from_nxstr_ptr(str, true))
     }
 
-    pub fn set_label(&self, value: Cstr) -> Result<(), CstrPtr> {
+    pub fn set_label(&self, value: NXstr) -> Result<(), NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let text = unsafe { TEXT_create_string(value.ptr) };
         let n = unsafe { XJA_BLOCK_STYLER_set_label(self.ptr, text as _) };
         unsafe { TEXT_free(text as _) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
         Ok(())
     }
 
-    pub fn get_name(&self) -> Result<Cstr, CstrPtr> {
+    pub fn get_name(&self) -> Result<NXstr, NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let mut p = 0;
         let n = unsafe { XJA_BLOCK_STYLER_get_name(self.ptr, &mut p) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
-        Ok(Cstr::from_ptr(p as _, true))
+        Ok(NXstr::from_nxstr_ptr(p as _, true))
     }
 
-    pub fn get_show(&self) -> Result<bool, CstrPtr> {
+    pub fn get_show(&self) -> Result<bool, NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let mut p = false;
         let n = unsafe { XJA_BLOCK_STYLER_get_show(self.ptr, &mut p) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
         Ok(p)
     }
 
-    pub fn set_show(&self, value: bool) -> Result<(), CstrPtr> {
+    pub fn set_show(&self, value: bool) -> Result<(), NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let n = unsafe { XJA_BLOCK_STYLER_set_show(self.ptr, value) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
         Ok(())
     }
 
-    pub fn get_type(&self) -> Result<Cstr, CstrPtr> {
+    pub fn get_type(&self) -> Result<NXstr, NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let mut p = 0usize;
         let n = unsafe { XJA_BLOCK_STYLER_get_type(self.ptr, &mut p) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
-        Ok(Cstr::from_ptr(p as _, true))
+        Ok(NXstr::from_nxstr_ptr(p as _, true))
     }
 
-    pub fn focus(&self) -> Result<(), CstrPtr> {
+    pub fn focus(&self) -> Result<(), NXstr> {
         unsafe { JAM_start_wrapped_call() };
         let n = unsafe { XJA_BLOCK_STYLER_test_focus_change(self.ptr) };
         if n != 0 {
-            return Err(unsafe { jam::ERROR_decode(n) });
+            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(n) }, false));
         }
         Ok(())
     }
