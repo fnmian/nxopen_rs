@@ -1,11 +1,11 @@
-use std::any::Any;
-use std::cell::RefCell;
-use std::rc::Rc;
 use crate::blockstyler::compositeblock::CompositeBlock;
 use crate::blockstyler::uiblock::UIBlock;
 use crate::cstr::NXstr;
 use crate::utilities::jam::JAM_start_wrapped_call;
-use crate::{jam, list_ui, CstrPtr};
+use crate::{CstrPtr, jam, list_ui};
+use std::any::Any;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[derive(Clone, Default)]
 pub struct BlockDialog {
@@ -19,7 +19,10 @@ impl BlockDialog {
         let mut response: Response = Response::Back;
         let num = unsafe { X18JA_BLOCK_STYLER_DIALOG_show(self.get_ptr(), &mut response) };
         if num != 0 {
-            return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(num) }, false));
+            return Err(NXstr::from_nxstr_ptr(
+                unsafe { jam::ERROR_decode(num) },
+                false,
+            ));
         }
         Ok(response)
     }
@@ -43,6 +46,11 @@ impl BlockDialog {
             BlockDialogInitializeAdapter::new(self.app.clone()),
         ))
     }
+     pub fn add_apply_initialize(&self) {
+        self.into_dialog_wrap().call_backs.apply = Some(Box::new(
+            BlockDialogApplyAdapter::new(self.app.clone()),
+        ))
+    }
     pub fn get_topblock(&self) -> Result<CompositeBlock, NXstr> {
         unsafe {
             JAM_start_wrapped_call();
@@ -64,10 +72,10 @@ impl BlockDialog {
                 &mut p,
             );
             if n != 0 {
-               return Err(NXstr::from_nxstr_ptr( jam::ERROR_decode(n), false));
+                return Err(NXstr::from_nxstr_ptr(jam::ERROR_decode(n), false));
             }
-            if p==0 {
-                return Err(format!("{} not found",block_name).into());
+            if p == 0 {
+                return Err(format!("{} not found", block_name).into());
             }
             Ok(UIBlock { ptr: p })
         }
@@ -81,7 +89,10 @@ pub fn create_dialog(
     unsafe { JAM_start_wrapped_call() };
     let errcode = unsafe { XJA_UI_MAIN_create_dialog(dialog_name.ptr, &mut dialog) };
     if errcode != 0 {
-        return Err(NXstr::from_nxstr_ptr(unsafe { jam::ERROR_decode(errcode) }, false));
+        return Err(NXstr::from_nxstr_ptr(
+            unsafe { jam::ERROR_decode(errcode) },
+            false,
+        ));
     }
     let block_dialog = BlockDialog {
         ptr: Some(dialog),
@@ -120,12 +131,13 @@ impl BlockDialogUpdateAdapter {
     fn free(&self) {}
     fn adapter(&self, styler_item: usize) -> i32 {
         match &self.data {
-            Some(d) => {
-                match d.borrow().update(UIBlock { ptr: styler_item }) {
-                    Ok(ok) => ok,
-                    Err(e) => {unsafe { list_ui::list_uiprintf("%s\n\0".as_ptr(),e.ptr) };0},
+            Some(d) => match d.borrow().update(UIBlock { ptr: styler_item }) {
+                Ok(ok) => ok,
+                Err(e) => {
+                    unsafe { list_ui::list_uiprintf("%s\n\0".as_ptr(), e.ptr) };
+                    0
                 }
-            }
+            },
             None => {
                 panic!()
             }
@@ -152,12 +164,46 @@ impl BlockDialogInitializeAdapter {
     fn free(&self) {}
     fn adapter(&mut self) {
         match &mut self.data {
-            Some(d) => {
-                match d.borrow_mut().initialize() {
-                    Ok(_) => (),
-                    Err(e) =>  {unsafe { list_ui::list_uiprintf("%s\n\0".as_ptr(),e.ptr) };()},
+            Some(d) => match d.borrow_mut().initialize() {
+                Ok(_) => (),
+                Err(e) => {
+                    unsafe { list_ui::list_uiprintf("%s\n\0".as_ptr(), e.ptr) };
+                    ()
                 }
+            },
+            None => {
+                panic!()
             }
+        }
+    }
+}
+
+struct BlockDialogApplyAdapter {
+    _vt: Box<CallBackAdapter>,
+    data: Option<Rc<RefCell<(dyn Application + 'static)>>>,
+}
+impl BlockDialogApplyAdapter {
+    pub(crate) fn new(app: Option<Rc<RefCell<(dyn Application + 'static)>>>) -> Self {
+        BlockDialogApplyAdapter {
+            _vt: Box::new(CallBackAdapter {
+                _free: BlockDialogApplyAdapter::free as *const () as usize,
+                _clone: 0,
+                _equal: 0,
+                _adapter: BlockDialogApplyAdapter::adapter as *const () as usize,
+            }),
+            data: app,
+        }
+    }
+    fn free(&self) {}
+    fn adapter(&mut self)->i32 {
+        match &mut self.data {
+            Some(d) => match d.borrow_mut().apply() {
+                Ok(i) => i,
+                Err(e) => {
+                    unsafe { list_ui::list_uiprintf("%s\n\0".as_ptr(), e.ptr) };
+                    0
+                }
+            },
             None => {
                 panic!()
             }
@@ -175,7 +221,7 @@ pub(crate) struct DialogWrap<'a> {
 #[repr(C)]
 struct DlgCallback {
     ok: usize,
-    apply: usize,
+    apply: Option<Box<BlockDialogApplyAdapter>>,
     cancel: usize,
     close: usize,
     update: Option<Box<BlockDialogUpdateAdapter>>,
@@ -224,11 +270,29 @@ unsafe extern "C" {
 }
 
 pub trait Application: Any + 'static {
-    fn update(&self, block: UIBlock) -> Result<i32,NXstr> {
+    fn create_dialog(self, name: NXstr) -> Result<BlockDialog, NXstr>;
+    fn set_dialog(&mut self, dialog: &BlockDialog);
+    fn initialize(&mut self) -> Result<(), NXstr> {
+        Ok(())
+    }
+    fn update(&self, block: UIBlock) -> Result<i32, NXstr> {
         let _ = block;
         Ok(0)
     }
-    fn initialize(&mut self)->Result<(), NXstr> {Ok(())}
-    fn create_dialog(self, name: NXstr) -> Result<BlockDialog, NXstr>;
-    fn set_dialog(&mut self, dialog: &BlockDialog);
+    fn ok(&self)->Result<i32,NXstr>{Ok(0)}
+    fn dialog_show(&self)->Result<(),NXstr>{Ok(())}
+    fn apply(&self)->Result<i32,NXstr>{Ok(0)}
+    fn cancel(&self)->Result<i32,NXstr>{Ok(0)}
+    fn close(&self)->Result<i32,NXstr>{Ok(0)}
+    fn enable_ok_button(&self)->Result<bool,NXstr>{Ok(true)}
+    fn focus_notify(&self, focus_block: UIBlock,isfocus:bool) -> Result<(), NXstr> {
+        let _ = focus_block;
+        let _ = isfocus;
+        Ok(())
+    }
+    fn keyboard_focus_notify(&self, block: UIBlock,isfocus:bool) -> Result<(), NXstr> {
+        let _ = block;
+        let _ = isfocus;
+        Ok(())
+    }
 }

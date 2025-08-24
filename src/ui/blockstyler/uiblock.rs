@@ -1,5 +1,5 @@
 use crate::{
-    blockstyler::button::Button, cstr::NXstr, jam::{
+    blockstyler::{button::Button, selectobject::SelectObject}, cstr::NXstr, jam::{
         self, JAM_ask_object_tag, JAM_start_wrapped_call, TEXT_create_string, TEXT_free,
         TEXT_to_locale,
     }, taggedobject::TaggedObject, Tag
@@ -15,6 +15,11 @@ pub struct UIBlock {
 }
 impl PartialEq<Button> for UIBlock {
     fn eq(&self, other: &Button) -> bool {
+        self.ptr==other.block().ptr
+    }
+}
+impl PartialEq<SelectObject> for UIBlock {
+    fn eq(&self, other: &SelectObject) -> bool {
         self.ptr==other.block().ptr
     }
 }

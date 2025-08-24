@@ -1,5 +1,6 @@
 use nxopen_rs::blockstyler::blockdialog::{Application};
 use nxopen_rs::blockstyler::button::Button;
+use nxopen_rs::blockstyler::selectobject::SelectObject;
 use nxopen_rs::blockstyler::uiblock::{IUIBlock, UIBlock};
 use nxopen_rs::taggedobject::TaggedObject;
 use nxopen_rs::{blockstyler::blockdialog::BlockDialog, cstr::NXstr};
@@ -28,16 +29,21 @@ pub extern "C" fn ufusr_ask_unload() -> i32 {
 pub struct Demo01 {
     the_dialog: BlockDialog,
     bt: Button,
+    sel:SelectObject,
 }
 
 impl Application for Demo01 {
     fn initialize(&mut self) -> Result<(), NXstr> {
         self.bt = self.the_dialog.find_block("button0".into())?.into();
+        self.sel=self.the_dialog.find_block("selection0".into())?.into();
         Ok(())
     }
     fn update(&self, block: UIBlock) -> Result<i32, NXstr> {
         if block == self.bt {
-           nx_println!("{}",self.bt.block().get_ptr());
+           nx_println!("{}",self.bt.block().get_type()?);
+        }
+        else if block==self.sel {
+            nx_println!("{}",self.sel.block().get_type()?);
         }
         Ok(0)
     }
@@ -46,10 +52,15 @@ impl Application for Demo01 {
         self.the_dialog = dialog.clone();
         self.the_dialog.add_update_initialize();
         self.the_dialog.add_update_handler();
+        self.the_dialog.add_apply_initialize();
     }
     
     fn create_dialog(self,name: NXstr) -> Result<BlockDialog, NXstr> {
         let dlg = nxopen_rs::blockstyler::blockdialog::create_dialog(Demo01::default(), name)?;
         Ok(dlg)
+    }
+    fn apply(&self)->Result<i32,NXstr> {
+        nx_println!("apply");
+        Ok(0)
     }
 }
